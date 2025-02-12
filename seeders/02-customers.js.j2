@@ -1,0 +1,35 @@
+const getDates = () => {
+  const startDate = new Date();
+  const endDate = new Date();
+  //start.setDate(start.getDate() - 9 + key);
+  endDate.setHours(endDate.getHours() + 4);
+  return { startDate, endDate };
+};
+module.exports = {
+  up: queryInterface =>
+    queryInterface.bulkInsert(
+      "customers",
+      [
+        {
+          name: "Mr Nobody",
+          email: "nobody@nowhere.org",
+          company: "None",
+          // workshopList: [
+          //   "Discover Grommet to develop apps"
+          // ],
+          ...getDates(),
+          sessionName: "",
+          location: "{{ WODBEFQDN }}",
+          sessionType: "",
+          hours: 4,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ],
+      {
+        returning: true
+      }
+    ),
+
+  down: queryInterface => queryInterface.bulkDelete("customers", null, {})
+};

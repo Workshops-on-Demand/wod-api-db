@@ -1,0 +1,705 @@
+{% raw %}
+import cron from 'cron';
+import models from '../../models';
+import createEmailBody from '../Email/createEmailBody';
+import { sendEmail, sendPostfixEmail } from '../Email';
+import dotenv from 'dotenv';
+
+dotenv.config();
+{% endraw %}
+
+const branding = '{{ BRANDINGWOD }}';
+const branding2 = '{{ BRANDINGSLACK }}';
+{% raw %}
+const { CronJob } = cron;
+
+const feedback_workshop_url = process.env.FEEDBACK_WORKSHOP_URL;
+const jupyterEmail = process.env.POSTFIX_EMAIL;
+// Special Badge IDs
+const apprentice_badge_id = 1;
+const expert_badge_id = 2;
+const hero_badge_id = 3;
+const superhero_badge_id = 4;
+const legend_badge_id = 5;
+// Number of workshops to be completed to earn special badge
+const apprentice_completed_workshops = 3;
+const expert_completed_workshops = 5;
+const hero_completed_workshops = 7;
+const superhero_completed_workshops = 10;
+const legend_completed_workshops = 15;
+
+const getHoursLeft = (ends) => {
+  const oneHour = 1 * 60 * 60 * 1000;
+  const endsDate = new Date(ends);
+  const today = new Date();
+  return Math.ceil((endsDate.getTime() - today.getTime()) / oneHour);
+};
+
+const getMins = (start) => {
+  const oneMin = 1 * 60 * 1000;
+  const startDate = new Date(start);
+  const today = new Date();
+  return Math.ceil((today.getTime() - startDate.getTime()) / oneMin);
+};
+
+const getDates = (duration) => {
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setHours(parseFloat(endDate.getHours()) + parseFloat(duration));
+  return { startDate, endDate };
+};
+
+const checkCompletedCourses = (email) => {
+  return models.customer.findAll({
+    where: {
+      email: email,
+      lastEmailSent: 'expired',
+    },
+    attributes: ['sessionName'],
+    group: ['sessionName'],
+    logging: false,
+  });
+};
+
+const checkCustomer = () => {
+  models.customer
+    .findAll({ include: [{ all: true, nested: true }] })
+    .then((customers) => {
+      customers.map(async (customer) => {
+        const { dataValues } = customer;
+        const customerStatus = dataValues.active;
+        const location = dataValues.location;
+        const sessionType = dataValues.sessionType;
+        const hoursLeft = getHoursLeft(dataValues.endDate);
+        const mins = getMins(dataValues.startDate);
+
+        let workshop, studentId;
+
+        // fetch the customer requested workshop from workshops table
+        workshop = await models.workshop.findOne({
+          where: { name: dataValues.sessionName },
+        });
+        if (location) {
+            studentId = dataValues.studentId;
+        } else {
+            // Should not happen => error
+            console.log('Undefined location - Please fix your setup');
+            return;
+        }
+
+        // Send welcome email.
+        if (!dataValues.lastEmailSent && studentId != null && studentId > 0) {
+            console.log('send email to welcome customer');
+            let subject,
+                heading,
+                content,
+                enjoyWorkshop = '';
+                subject = branding+' Workshops-on-Demand';
+                heading = 'Welcome to '+branding+' Workshops-on-Demand!';
+                content = `Hello, ${dataValues.name}! <br> <br>
+                In a moment, you will receive a second email providing you with the details required to access the ${branding} Workshop-on-Demand, <b>${dataValues.sessionName}</b> workshop.<br/><br/>
+                To ensure a successful experience with this workshop, please take a moment to review this <a href="${workshop.replayLink}">video replay</a> of the live workshop.`;
+                if ( branding2 !== "" ) {
+                    content += branding2;
+                }
+                content += `
+                <b>NOTE:</b> Your workshop access will expire in ${workshop.duration} hours.
+                Please make sure you save your workshop work before you lose the access to your Jupyter Notebook.
+                <br/><br/>`;
+                enjoyWorkshop = 'Enjoy the workshop!';
+                sendEmail({
+                    location: location,
+                    sessionType: sessionType,
+                    recipient: dataValues.email,
+                    subject: subject,
+                    content: createEmailBody({
+                      heading: heading,
+                      content: content,
+                      enjoyWorkshop: enjoyWorkshop,
+                    }),
+                    proxy: dataValues.proxy,
+                    credentialsEmail: false,
+                  })
+                 .then(() => {
+                     console.log('welcome email sent successfully');
+                     customer.update({
+                         lastEmailSent: 'welcome',
+                         specialBadgeId: 0,
+                       });
+                  })
+                  .then(() => {
+                     console.log('welcome status updated in DB');
+                     var mailContent = `${dataValues.notebook}`;
+                     return sendPostfixEmail({
+                       location: location,
+                       recipient: jupyterEmail,
+                       subject: `CREATE ${studentId} ${dataValues.id} ${dataValues.email}`,
+                       content: mailContent,
+                     })
+                     .then(() => {
+                         console.log('email sent to postfix to prepare a student account', jupyterEmail);
+                     })
+                     .catch((error) => {
+                        console.log('CREATE email Rejected', error);
+                     });
+                 })
+                 .catch((error) => {
+                    console.log('Promise Rejected', error);
+                 });
+        }
+
+        if (
+          dataValues.lastEmailSent &&
+          dataValues.lastEmailSent === 'welcome' &&
+          mins > 10
+        ) {
+          console.log(
+            '*******Struck in welcome status for more than 10 minutes******'
+          );
+          let subject, heading, content, enjoyWorkshop;
+          console.log(
+            'send CLEANUP email',
+            studentId,
+            dataValues.id,
+            workshop.notebook
+          );
+          return sendPostfixEmail({
+            location: location,
+            content: workshop.notebook,
+            recipient: jupyterEmail,
+            subject: `CLEANUP ${studentId} ${dataValues.id}`,
+          })
+            .then(() => {
+              subject = `${branding} Workshop-on-Demand ${dataValues.sessionName} Deployment Issue.`;
+              heading = `Your ${branding} Workshop-on-Demand Status`;
+              content = `Hello, ${dataValues.name}! <br> <br>According to our monitoring system, it appears that the deployment of your <b>${dataValues.sessionName}</b> workshop failed. 
+          Your registration has been reset and you should now be able to register for your <a href="{{ WODFEFQDN }}/workshops/${workshop.replayId}">workshop</a>. <br> <br>
+          We sincerely apologize for the inconvenience.<br>`;
+              enjoyWorkshop = 'Enjoy the workshop!';
+              sendEmail({
+                location: location,
+                sessionType: sessionType,
+                recipient: dataValues.email,
+                subject: subject,
+                content: createEmailBody({
+                  heading: heading,
+                  content: content,
+                  enjoyWorkshop: enjoyWorkshop,
+                }),
+                proxy: dataValues.proxy,
+                credentialsEmail: false,
+              });
+            })
+            .then(() => {
+              customer.update({
+                lastEmailSent: 'error',
+              });
+              console.log('sent error email');
+            })
+            .then(async () => {
+              if (
+                !workshop.reset ||
+                (workshop.reset &&
+                  workshop.notebook != 'WKSHP-OneView' &&
+                  workshop.notebook != 'WKSHP-OneView-Advanced')
+              ) {
+                await workshop.increment('capacity');
+              }
+            })
+            .catch((error) => {
+              console.log('Promise Rejected', error);
+            });
+        }
+
+        // Send credentials as soon as there are ready.
+        if (customerStatus && dataValues.lastEmailSent === 'welcome') {
+          let subject,
+            heading,
+            content,
+            buttonLabel,
+            registerMore,
+            credentialsEmail,
+            enjoyWorkshop;
+            subject = branding+' Workshops-on-Demand credentials';
+            heading = 'Your '+branding+' Workshops-on-Demand credentials';
+            content = `${dataValues.name}, <br/> <br/>The clock has started! Begin your ${branding} Workshop-on-Demand, <b>${dataValues.sessionName}</b> workshop using the credentials below.
+             Remember, you have <b>${workshop.duration} hours</b> from now to finish your workshop. If you do not currently have a dedicated 4-hour period in which to complete it, you can re-register at a later time.<br/><br/> 
+            <b>NOTE:</b> You may have to click the Launch Server button once you log into your Jupyter student account.<br/><br/>
+            Use below credentials to start the workshop:<br/><br/>
+            <b>User Name: ${dataValues.student.username}</b><br/>
+            <b>Password: ${dataValues.student.password}</b><br/>`;
+            registerMore = `Remember, to ensure a successful experience with this workshop, please take a moment to review this <a href="${workshop.replayLink}">video replay</a> of the live workshop.`+branding2+`<br/><br/>`;
+            buttonLabel = 'Start Workshop';
+            enjoyWorkshop = 'Enjoy the workshop!';
+          return sendEmail({
+            location: location,
+            sessionType: sessionType,
+            recipient: dataValues.email,
+            subject: subject,
+            content: createEmailBody({
+              heading: heading,
+              content: content,
+              buttonLabel: buttonLabel,
+              buttonUrl: dataValues.student.url,
+              registerMore: registerMore,
+              enjoyWorkshop: enjoyWorkshop,
+            }),
+            proxy: dataValues.proxy,
+            credentialsEmail: true,
+          })
+            .then(() => {
+              console.log('sent credentials email');
+              customer.update({
+                lastEmailSent: 'credentials',
+                ...getDates(workshop.duration),
+              });
+              console.log('credentials status updated in DB');
+            })
+            .catch((error) => {
+              console.log('Promise Rejected', error);
+            });
+        }
+
+        // Send expiring soon email.
+        if (hoursLeft <= 1 && dataValues.lastEmailSent === 'credentials') {
+          let subject, heading, content, buttonLabel, enjoyWorkshop;
+
+            subject =
+              'Your '+branding+' Workshops-on-Demand session will end in one hour';
+            heading =
+              'Your '+branding+' Workshops-on-Demand session will end in one hour';
+            content = `${dataValues.name}, <br/> <br/>Please remember to save your work and download the workshop notebook if you anticipate 
+            requiring it in the future. Your account will be erased after your session has ended. <br/><br/>`+branding2+
+            `Remember to use these credentials to connect to the workshop:<br/><br/>
+            <b>User Name: ${dataValues.student.username}</b><br/>
+            <b>Password: ${dataValues.student.password}</b><br/>`;
+            buttonLabel = 'View Workshop';
+            enjoyWorkshop = 'Enjoy the workshop!';
+          return sendEmail({
+            location: location,
+            sessionType: sessionType,
+            recipient: dataValues.email,
+            subject: subject,
+            content: createEmailBody({
+              heading: heading,
+              content: content,
+              buttonLabel: buttonLabel,
+              buttonUrl: dataValues.student.url,
+              enjoyWorkshop: enjoyWorkshop,
+            }),
+            proxy: dataValues.proxy,
+            credentialsEmail: false,
+          })
+            .then(() => {
+              customer.update({
+                lastEmailSent: 'expiring',
+              });
+              console.log('sent expiring email');
+            })
+            .catch((error) => {
+              console.log('Promise Rejected', error);
+            });
+        }
+
+        // Send expired email.
+        if (
+          (hoursLeft <= 0 && dataValues.lastEmailSent === 'expiring') ||
+          dataValues.lastEmailSent === 'unregister'
+        ) {
+          let subject,
+            heading,
+            content,
+            registerMore,
+            shareWorkshop,
+            feedback_url = '',
+            badgeImg = workshop.badgeImg ? workshop.badgeImg : null,
+            replayId =
+              workshop.replayId || workshop.replayId === 0
+                ? workshop.replayId
+                : null;
+            subject =
+              'Thanks for participating in the '+branding+' Workshops-on-Demand!';
+            heading = `Thanks for participating in the ${branding} Workshops-on-Demand!`;
+            content = `Time’s up! Congratulations on finishing the <b>${dataValues.sessionName}</b> workshop. 
+              Please find your commemorative badge below, recognizing your achievement. Share your accomplishment with friends and colleagues by clicking on the social links below.`;
+            registerMore = `Ready for another Workshop? Register <a href="http://{{ WODFEFQDN }}:{{ WODFEPORT }}/workshops">here</a>.`;
+            shareWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
+            feedback_url = feedback_workshop_url;
+          console.log(
+            'send CLEANUP email',
+            studentId,
+            dataValues.id,
+            workshop.notebook
+          );
+          return sendPostfixEmail({
+            location: location,
+            recipient: jupyterEmail,
+            subject: `CLEANUP ${studentId} ${dataValues.id}`,
+            content: workshop.notebook,
+          })
+            .then(() => {
+            customer
+              .update({
+                lastEmailSent: 'expired',
+                active: false,
+              })
+              .then(async () => {
+                console.log('send expired email');
+                sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    buttonLabel: 'Click here to provide feedback',
+                    buttonUrl: feedback_url,
+                    registerMore: registerMore,
+                    shareWorkshop: shareWorkshop,
+                    badgeImg: badgeImg,
+                    replayId: replayId,
+                    sessionName: dataValues.sessionName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                });
+              })
+              .then(async () => {
+                if (
+                  (workshop.reset &&
+                    workshop.capacity === 0 &&
+                    (workshop.notebook === 'WKSHP-OneView' ||
+                      workshop.notebook === 'WKSHP-OneView-Advanced')) ||
+                  (workshop.reset &&
+                    workshop.notebook != 'WKSHP-OneView' &&
+                    workshop.notebook != 'WKSHP-OneView-Advanced')
+                ) {
+                  console.log(
+                    'sending reset email RESET',
+                    workshop.notebook,
+                    workshop.range
+                  );
+                  if (
+                    workshop.notebook != 'WKSHP-OneView' &&
+                    workshop.notebook != 'WKSHP-OneView-Advanced'
+                  ) {
+                    subject = `RESET ${studentId}`;
+                  } else {
+                    subject = `RESET ${workshop.range}`;
+                  }
+                  sendPostfixEmail({
+                    location: location,
+                    content: workshop.notebook,
+                    recipient: jupyterEmail,
+                    subject: subject,
+                  });
+                }
+              })
+              .then(async () => {
+                if (
+                  !workshop.reset ||
+                  (workshop.reset &&
+                    workshop.notebook != 'WKSHP-OneView' &&
+                    workshop.notebook != 'WKSHP-OneView-Advanced')
+                ) {
+                  await workshop.increment('capacity');
+                }
+              })
+              .then(() => {
+                checkSpecialBadges();
+              })
+              .catch((error) => {
+                console.log('Promise Rejected', error);
+              });
+          });
+        }
+        return;
+      });
+
+      // Uncomment below to check & send email if customers have already completed workshops before badge feature was implemented
+      // checkSpecialBadges()
+    });
+};
+
+const checkSpecialBadges = () => {
+  models.customer
+    .findAll({ include: [{ all: true, nested: true }] })
+    .reduce((accum, customer) => {
+      const { dataValues } = customer;
+      const sessionType = dataValues.sessionType;
+      const location = dataValues.location;
+      if (!accum.includes(dataValues.email)) {
+        if (
+          dataValues.lastEmailSent === 'expired' &&
+          dataValues.specialBadgeId !== legend_badge_id
+        ) {
+          let subject,
+            heading,
+            contentTemplate,
+            content,
+            registerMore,
+            shareSpecialWorkshop,
+            feedback_url,
+            badgeImg,
+            badgeName;
+
+            subject =
+              'Way to go! You just earned the '+branding+' Apprentice badge!';
+            heading = `Thanks for participating in the ${branding} Workshops-on-Demand!`;
+            contentTemplate = (
+              number
+            ) => `Way to go! Congratulations on finishing another ${branding} Workshop-on-Demand. In recognition of your having finished  <b>${number} workshops</b>, 
+              please find your commemorative badge below. Feel free to share your accomplishment with friends and colleagues by clicking on the social links below.`;
+            registerMore = `Continue to level up and collect more badges by registering for <a href="http://{{ WODFEFQDN }}:{{ WODFEPORT }}/workshops">additional workshops</a>.`;
+            shareSpecialWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
+            feedback_url = feedback_workshop_url;
+          checkCompletedCourses(dataValues.email).then(async (result) => {
+            if (result.length <= 2) {
+              customer.update({
+                specialBadgeId: 0,
+              });
+
+              // APPRENTICE BADGE
+            } else if (result.length >= 3 && result.length <= 4) {
+              if (
+                dataValues.specialBadgeId === null ||
+                dataValues.specialBadgeId === 0
+              ) {
+                customer.update({
+                  specialBadgeId: apprentice_badge_id,
+                });
+                const specialBadge = await models.special_badge.findOne({
+                  where: { id: dataValues.specialBadgeId },
+                });
+
+                badgeName = specialBadge.dataValues.name;
+                badgeImg = specialBadge.dataValues.badgeImg;
+                content = contentTemplate(apprentice_completed_workshops);
+                return sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    registerMore: registerMore,
+                    shareSpecialWorkshop: shareSpecialWorkshop,
+                    badgeImg: badgeImg,
+                    specialBadgeId: dataValues.specialBadgeId,
+                    completedWorkshops: apprentice_completed_workshops,
+                    badgeName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                }).then(() => {
+                  console.log('~~~~~~~~Apprentice badge sent~~~~~~~');
+                });
+              }
+
+              // EXPERT BADGE
+            } else if (result.length >= 5 && result.length <= 6) {
+              if (
+                dataValues.specialBadgeId === null ||
+                dataValues.specialBadgeId === apprentice_badge_id
+              ) {
+                customer.update({
+                  specialBadgeId: expert_badge_id,
+                });
+                const specialBadge = await models.special_badge.findOne({
+                  where: { id: dataValues.specialBadgeId },
+                });
+                subject =
+                  'Way to go! You just earned the '+branding+' Expert badge!';
+                badgeName = specialBadge.dataValues.name;
+                badgeImg = specialBadge.dataValues.badgeImg;
+                content = contentTemplate(expert_completed_workshops);
+                return sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    registerMore: registerMore,
+                    shareSpecialWorkshop: shareSpecialWorkshop,
+                    badgeImg: badgeImg,
+                    specialBadgeId: dataValues.specialBadgeId,
+                    completedWorkshops: expert_completed_workshops,
+                    badgeName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                }).then(() => {
+                  console.log('~~~~~~~~Expert badge sent~~~~~~~');
+                });
+              }
+
+              // HERO BADGE
+            } else if (result.length >= 7 && result.length <= 9) {
+              if (
+                dataValues.specialBadgeId === null ||
+                dataValues.specialBadgeId === expert_badge_id
+              ) {
+                customer.update({
+                  specialBadgeId: hero_badge_id,
+                });
+                const specialBadge = await models.special_badge.findOne({
+                  where: { id: dataValues.specialBadgeId },
+                });
+                subject =
+                  'Way to go! You just earned the '+branding+' Hero badge!';
+                badgeName = specialBadge.dataValues.name;
+                badgeImg = specialBadge.dataValues.badgeImg;
+                content = contentTemplate(hero_completed_workshops);
+                return sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    registerMore: registerMore,
+                    shareSpecialWorkshop: shareSpecialWorkshop,
+                    badgeImg: badgeImg,
+                    specialBadgeId: dataValues.specialBadgeId,
+                    completedWorkshops: hero_completed_workshops,
+                    badgeName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                }).then(() => {
+                  console.log('~~~~~~~~Hero badge sent~~~~~~~');
+                });
+              }
+
+              // SUPERHERO BADGE
+            } else if (result.length >= 10 && result.length <= 14) {
+              if (
+                dataValues.specialBadgeId === null ||
+                dataValues.specialBadgeId === hero_badge_id
+              ) {
+                customer.update({
+                  specialBadgeId: superhero_badge_id,
+                });
+                const specialBadge = await models.special_badge.findOne({
+                  where: { id: dataValues.specialBadgeId },
+                });
+                badgeName = specialBadge.dataValues.name;
+                subject =
+                  'Way to go! You just earned the '+branding+' Super Hero badge!';
+                badgeImg = specialBadge.dataValues.badgeImg;
+                content = contentTemplate(superhero_completed_workshops);
+                return sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    registerMore: registerMore,
+                    shareSpecialWorkshop: shareSpecialWorkshop,
+                    badgeImg: badgeImg,
+                    specialBadgeId: dataValues.specialBadgeId,
+                    completedWorkshops: superhero_completed_workshops,
+                    badgeName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                }).then(() => {
+                  console.log('~~~~~~~~Super Hero badge sent~~~~~~~');
+                });
+              }
+
+              // LEGEND BADGE
+            } else if (result.length >= 15) {
+              if (
+                dataValues.specialBadgeId === null ||
+                dataValues.specialBadgeId === superhero_badge_id
+              ) {
+                customer.update({
+                  specialBadgeId: legend_badge_id,
+                });
+                const specialBadge = await models.special_badge.findOne({
+                  where: { id: dataValues.specialBadgeId },
+                });
+                badgeName = specialBadge.dataValues.name;
+                subject =
+                  'Way to go! You just earned the '+branding+' Legend badge!';
+                badgeImg = specialBadge.dataValues.badgeImg;
+                content = contentTemplate(legend_completed_workshops);
+                return sendEmail({
+                  location: location,
+                  sessionType: sessionType,
+                  recipient: dataValues.email,
+                  subject: subject,
+                  content: createEmailBody({
+                    heading: heading,
+                    content: content,
+                    registerMore: registerMore,
+                    shareSpecialWorkshop: shareSpecialWorkshop,
+                    badgeImg: badgeImg,
+                    specialBadgeId: dataValues.specialBadgeId,
+                    completedWorkshops: legend_completed_workshops,
+                    badgeName,
+                  }),
+                  proxy: dataValues.proxy,
+                  credentialsEmail: false,
+                }).then(() => {
+                  console.log('~~~~~~~~Legend badge sent~~~~~~~');
+                });
+              }
+            }
+          });
+        }
+        accum.push(dataValues.email);
+      } else {
+        checkCompletedCourses(dataValues.email).then(async (result) => {
+          if (result.length <= 2) {
+            customer.update({
+              specialBadgeId: 0,
+            });
+          } else if (result.length >= 3 && result.length <= 4) {
+            customer.update({
+              specialBadgeId: apprentice_badge_id,
+            });
+          } else if (result.length >= 5 && result.length <= 6) {
+            customer.update({
+              specialBadgeId: expert_badge_id,
+            });
+          } else if (result.length >= 7 && result.length <= 9) {
+            customer.update({
+              specialBadgeId: hero_badge_id,
+            });
+          } else if (result.length >= 10 && result.length <= 14) {
+            customer.update({
+              specialBadgeId: superhero_badge_id,
+            });
+          } else if (result.length >= 15) {
+            customer.update({
+              specialBadgeId: legend_badge_id,
+            });
+          }
+        });
+      }
+      return accum;
+    }, []);
+};
+
+const runCronJobs = () => {
+  const jobToCheckCustomers = new CronJob({
+    // cronTime: '00 00 * * * *', // every hour
+    cronTime: '*/20 * * * * *', // every 20 seconds
+    onTick: () => checkCustomer(),
+    runOnInit: true,
+  });
+
+  jobToCheckCustomers.start();
+};
+
+export default runCronJobs;
+{% endraw %}

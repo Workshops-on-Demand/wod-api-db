@@ -1,0 +1,399 @@
+import express from 'express';
+import models from '../models';
+const { authJwt } = require('../middleware');
+const Sequelize = require('sequelize');
+const op = Sequelize.Op;
+import dotenv from 'dotenv';
+import MailChecker from 'mailchecker';
+
+dotenv.config();
+const denyList = process.env.DENYLIST;
+
+const router = express.Router();
+
+// end customer workshop trail in DB workshops table hours
+const getDates = (duration) => {
+  const startDate = new Date();
+  const endDate = new Date();
+  endDate.setHours(parseFloat(endDate.getHours()) + parseFloat(duration));
+  return { startDate, endDate };
+};
+
+/**
+ * @swagger
+ * tags:
+ *   name: Customers
+ *   description: Customer management
+ */
+
+/**
+ * @swagger
+ * path:
+ *  /customers:
+ *    get:
+ *      summary: Returns a list of  customers.
+ *      tags: [Customers]
+ *      responses:
+ *        "200":
+ *          description: A JSON array of customer objects
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// Get customers
+router.get('/customers', [authJwt.verifyToken], (req, res) => {
+  // jwt.verify(req.token, 'secretkey', (err) => {
+  //   if (err) {
+  //     res.status(403).send('Access Denied');
+  //   } else {
+  models.customer
+    .findAll({
+      raw: true,
+      order: [['id', 'ASC']],
+    })
+    .then((entries) => res.send(entries));
+  //   }
+  // });
+});
+
+/**
+ * @swagger
+ * path:
+ *  /customers/{customerId}:
+ *    get:
+ *      summary: Get a customer by ID.
+ *      tags: [Customers]
+ *      parameters:
+ *        - in: path
+ *          name: customerId
+ *          schema:
+ *            type: integer
+ *          required: true
+ *          description: Id of the  customer
+ *      responses:
+ *        "200":
+ *          description: An customer object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// Get customer by ID
+router.get('/customers/:id', [authJwt.verifyToken], (req, res) => {
+  models.customer
+    .findOne({
+      where: { id: req.params.id },
+    })
+    .then((entry) => {
+      if (entry) res.status(200).send(entry);
+      else res.status(400).send('Customer Not Found');
+    })
+    .catch((error) => {
+      res.status(400).send({ error });
+    });
+});
+
+// Create a Customer
+/**
+ * @swagger
+ * path:
+ *  /customer:
+ *    post:
+ *      summary: Create a new customer
+ *      tags: [Customers]
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Customer'
+ *      responses:
+ *        "200":
+ *          description: A customer schema
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// Create customer
+// original line with token verification not used by open source frontend
+// router.post('/customer', [authJwt.verifyToken], async (req, res) => {
+router.post('/customer', async (req, res) => {
+  try {
+    const email = req.body.email;
+
+    // check if customer email in regex
+    const regex = /[0-9]+\.[0-9]+@|mailstop/;
+    if (email.includes('@gmail') && regex.test(email)) {
+      console.log('Email found in regex: ', email);
+      return res.status(200).send();
+    }
+
+    // check whether customer email is in mailchecker package denylist
+    if (!MailChecker.isValid(email)) {
+      console.log('Email found in package denylist: ', email);
+      return res.status(200).send();
+    }
+
+    // check whether customer email is in custom denylist
+    const deniedEmail = denyList
+      .split(',')
+      .some((domain) => email.includes(domain));
+    if (deniedEmail) {
+      console.log('Email found in custom denylist: ', email);
+      return res.status(200).send();
+    }
+
+    // check whether customer is already registered for another workshop
+    const existingCustomer = await models.customer.findAll({
+      where: {
+        email,
+        lastEmailSent: {
+          [op.or]: {
+            [op.in]: ['welcome', 'credentials', 'expiring'],
+            [op.is]: null,
+          },
+        },
+      },
+    });
+    if (existingCustomer.length > 0) {
+      return res.status(202).send({
+        id: existingCustomer[0].dataValues.id,
+        title: existingCustomer[0].dataValues.sessionName,
+        endDate: existingCustomer[0].dataValues.endDate,
+      });
+    }
+    // fetch the customer requested workshop from workshops table
+    let workshop;
+    let studentRange = [0, 0];
+    workshop = await models.workshop.findOne({
+      where: { name: req.body.title },
+    });
+    if (workshop && workshop.capacity <= 0) {
+      return res
+        .status(202)
+        .send('Registration full, capacity exceeded. Please try again later');
+    }
+    studentRange = workshop.range;
+    let location;
+    console.log('student range found', studentRange);
+    console.log('workshop location', workshop.location);
+    location = await models.location.findOne({
+      where: { name: workshop.location },
+      })
+
+    if (!location || location === null) {
+      console.log('Location Not Available!');
+      return res.status(202).send('No location available for this workshop - contact admin team');
+    } else {
+      if (location.basestdid === null) {
+         console.log('Basestdid Not Available for location', location.name);
+         return res.status(202).send('Basestdid Not Available for that location - contact admin team');
+      } else {
+         let basestdid = parseInt(location.basestdid);
+         console.log('basestdid', basestdid, 'for location', location.name);
+         studentRange[0] += parseInt(basestdid);
+         studentRange[1] += parseInt(basestdid);
+      }
+    }
+
+    console.log('student range now', studentRange);
+
+    // fetch the unassigned student account to assign to the requested customer
+    const student = await models.student.findOne({
+      where: {
+        assigned: {
+          [op.eq]: false,
+        },
+        id: {
+          [op.between]: studentRange,
+        },
+        location: {
+          [op.eq]: location.name,
+        },
+      },
+    });
+    // return error if student account is not available else assign it to the customer
+    if (student === null) {
+      console.log('Student Account Not Available!');
+      return res.status(202).send('Registration full, no student account. Please try again later');
+    } else {
+      console.log('customer req', req.body);
+      var name = req.body.name;
+      name = name
+        .toLowerCase()
+        .split(' ')
+        .map((s) => s.charAt(0).toUpperCase() + s.substring(1))
+        .join(' ');
+      const dataValues = await models.customer.create({
+        ...req.body,
+        name: name,
+        sessionName: req.body.title,
+        hours: 4,
+        ...getDates(workshop.duration),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      if (dataValues) {
+        await student.update({
+          assigned: true,
+        });
+        await dataValues.update({
+          studentId: student.id,
+        });
+        await workshop.decrement('capacity');
+        res.status(200).send({
+          id: dataValues.id,
+          name: dataValues.name,
+          email: dataValues.email,
+          studentId: dataValues.studentId,
+          proxy: dataValues.proxy,
+        });
+      }
+    }
+    // }
+  } catch (error) {
+    console.log('error in catch!', error);
+    res.status(400).send({ error });
+  }
+});
+/**
+ * @swagger
+ * path:
+ *  /customer/{customerId}:
+ *    put:
+ *      summary: Update a customer by ID.
+ *      tags: [Customers]
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Customer'
+ *      parameters:
+ *        - in: path
+ *          name: customerId
+ *          schema:
+ *            type: integer
+ *          required: true
+ *          description: Id of the customer
+ *      responses:
+ *        "200":
+ *          description: A Customer object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// Edit customer
+router.put(
+  '/customer/:id',
+  [authJwt.verifyToken, authJwt.isModeratorOrAdmin],
+  (req, res) => {
+    models.customer
+      .findOne({
+        where: { id: req.params.id },
+      })
+      .then((entry) => {
+        console.log('req.body', req.body);
+        entry
+          .update({ ...req.body })
+          .then(({ dataValues }) => res.status(200).send(dataValues));
+      })
+      .catch((error) => {
+        res.status(400).send({ error });
+      });
+  }
+);
+
+/**
+ * @swagger
+ * path:
+ *  /customer/{customerId}:
+ *    delete:
+ *      summary: Delete a  customer by ID.
+ *      tags: [Customers]
+ *      parameters:
+ *        - in: path
+ *          name: customerId
+ *          schema:
+ *            type: integer
+ *          required: true
+ *          description: Id of the customer
+ *      responses:
+ *        "200":
+ *          description: A Customer object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// Delete customer
+router.delete(
+  '/customer/:id',
+  [authJwt.verifyToken, authJwt.isAdmin],
+  (req, res) => {
+    models.customer
+      .findOne({
+        where: { id: req.params.id },
+      })
+      .then((entry) => {
+        entry.destroy().then(() => res.status(200).send({}));
+      })
+      .catch((error) => {
+        res.status(400).send({ error });
+      });
+  }
+);
+
+/**
+ * @swagger
+ * path:
+ *  /customer/unregister/{customerId}:
+ *    put:
+ *      summary: unregister customer session by ID.
+ *      tags: [Customers]
+ *      requestBody:
+ *        required: true
+ *        content:
+ *          application/json:
+ *            schema:
+ *              $ref: '#/components/schemas/Customer'
+ *      parameters:
+ *        - in: path
+ *          name: customerId
+ *          schema:
+ *            type: integer
+ *          required: true
+ *          description: Id of the customer
+ *      responses:
+ *        "200":
+ *          description: A Customer object
+ *          content:
+ *            application/json:
+ *              schema:
+ *                $ref: '#/components/schemas/Customer'
+ */
+// unregister customer
+router.put('/customer/unregister/:id', [authJwt.verifyToken], (req, res) => {
+  models.customer
+    .findOne({
+      where: { id: req.params.id },
+    })
+    .then((entry) => {
+      console.log('entry: ', entry);
+      entry
+        .update({
+          active: false,
+          lastEmailSent: 'unregister',
+          endDate: new Date(),
+        })
+        .then(({ dataValues }) => res.status(200).send(dataValues));
+    })
+    .catch((error) => {
+      res.status(400).send({ error });
+    });
+});
+
+export default router;

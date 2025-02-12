@@ -1,0 +1,17 @@
+{
+    "tables": {
+        "workshops": {
+            "tableName": "workshops",
+            "indexes": []
+        },
+        "students": {
+            "tableName": "students",
+            "indexes": []
+        },
+        "customers": {
+            "tableName": "customers",
+            "indexes": []
+        }
+    },
+    "revision": 1
+}

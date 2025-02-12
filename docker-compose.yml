@@ -1,0 +1,23 @@
+# Use postgres/example user/password credentials
+services:
+
+  db:
+    image: postgres
+    container_name: postgres
+    restart: always
+    volumes:
+      - ./data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    user: ${WODUID}:${WODGID}
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PW}
+      POSTGRES_DB: workshops-on-demand
+      PGDATA: /var/lib/postgresql/data/apertis-qa-report
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8083:8080"
