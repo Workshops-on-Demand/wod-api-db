@@ -2,7 +2,7 @@ version: 0.0
 os: linux
 files:
   - source: /
-    destination: /home/ubuntu/wod-frontend
+    destination: /home/ubuntu/workshops_on_demand_server
 permissions:
   - object: /home/ubuntu
     owner: ubuntu
