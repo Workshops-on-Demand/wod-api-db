@@ -27,6 +27,8 @@ dotenv.config();
 const branding = '{{ BRANDINGWOD }}';
 const brandingurl = '{{ BRANDINGURL }}';
 const SOURCE_ORIGIN = 'http://{{ WODFEFQDN }}:{{ WODFEPORT }}';
+const SOURCE_ORIGIN_EXT = 'http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}';
+const WODAPIDBEXTURL = 'http://{{ WODAPIDBEXTFQDN }}:{{ WODAPIDBEXTPORT }}';
 const WODAPIDBURL = 'http://{{ WODAPIDBFQDN }}:{{ WODAPIDBPORT }}';
 
 {% raw %}
@@ -35,8 +37,8 @@ const { FROM_EMAIL_ADDRESS, WODAPIDBPORT } = process.env;
 const app = express();
 
 let corsOptions = {
-  origin: SOURCE_ORIGIN,
-  //origin: [SOURCE_ORIGIN,WODAPIDBURL],
+  //origin: SOURCE_ORIGIN,
+  origin: [SOURCE_ORIGIN,SOURCE_ORIGIN_EXT,WODAPIDBEXTURL,WODAPIDBURL],
 };
 app.use(cors(corsOptions));
 app.use(compression());
@@ -73,7 +75,7 @@ const options = {
         description: 'Local (development) server',
       },
       {
-        url: WODAPIDBURL,
+        url: WODAPIDBEXTURL,
         description: 'Main (production) server',
       },
     ],
