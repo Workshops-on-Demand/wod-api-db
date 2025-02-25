@@ -173,7 +173,7 @@ const checkCustomer = () => {
               subject = `${branding} Workshop-on-Demand ${dataValues.sessionName} Deployment Issue.`;
               heading = `Your ${branding} Workshop-on-Demand Status`;
               content = `Hello, ${dataValues.name}! <br> <br>According to our monitoring system, it appears that the deployment of your <b>${dataValues.sessionName}</b> workshop failed. 
-          Your registration has been reset and you should now be able to register for your <a href="{{ WODFEFQDN }}/workshops/${workshop.replayId}">workshop</a>. <br> <br>
+          Your registration has been reset and you should now be able to register for your <a href="{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops/${workshop.replayId}">workshop</a>. <br> <br>
           We sincerely apologize for the inconvenience.<br>`;
               enjoyWorkshop = 'Enjoy the workshop!';
               sendEmail({
@@ -322,7 +322,7 @@ const checkCustomer = () => {
             heading = `Thanks for participating in the ${branding} Workshops-on-Demand!`;
             content = `Time’s up! Congratulations on finishing the <b>${dataValues.sessionName}</b> workshop. 
               Please find your commemorative badge below, recognizing your achievement. Share your accomplishment with friends and colleagues by clicking on the social links below.`;
-            registerMore = `Ready for another Workshop? Register <a href="http://{{ WODFEFQDN }}:{{ WODFEPORT }}/workshops">here</a>.`;
+            registerMore = `Ready for another Workshop? Register <a href="http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">here</a>.`;
             shareWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
             feedback_url = feedback_workshop_url;
           console.log(
@@ -451,7 +451,7 @@ const checkSpecialBadges = () => {
               number
             ) => `Way to go! Congratulations on finishing another ${branding} Workshop-on-Demand. In recognition of your having finished  <b>${number} workshops</b>, 
               please find your commemorative badge below. Feel free to share your accomplishment with friends and colleagues by clicking on the social links below.`;
-            registerMore = `Continue to level up and collect more badges by registering for <a href="http://{{ WODFEFQDN }}:{{ WODFEPORT }}/workshops">additional workshops</a>.`;
+            registerMore = `Continue to level up and collect more badges by registering for <a href="http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">additional workshops</a>.`;
             shareSpecialWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
             feedback_url = feedback_workshop_url;
           checkCompletedCourses(dataValues.email).then(async (result) => {
