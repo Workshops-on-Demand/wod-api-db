@@ -14,10 +14,16 @@
  *            type: integer
  *          name:
  *            type: string
- *            description: ame of the location
+ *            description: name of the location
  *          basestdid:
  *            type: integer
  *            description: base of the student id
+ *          proto:
+ *            type: string
+ *            description: protocol used to dialog with the backend mentionned in location (http or https)
+ *          port:
+ *            type: string
+ *            description: port used to dialog with the backend mentionned in location
  *          createdAt:
  *            type: string
  *            format: date-time
@@ -38,6 +44,8 @@ module.exports = (sequelize, DataTypes) => {
         autoIncrement: true,
       },
       name: DataTypes.STRING,
+      proto: DataTypes.STRING,
+      port: DataTypes.STRING,
       basestdid: DataTypes.INTEGER,
       createdAt: DataTypes.DATE,
       updatedAt: DataTypes.DATE,

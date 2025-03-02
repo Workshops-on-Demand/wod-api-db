@@ -6,9 +6,9 @@ var express = require("express"),
 
 dotenv.config();
 
-const fromEmailAddress = process.env.FROM_EMAIL_ADDRESS;
+const fromEmailAddress = process.env.WODSENDER;
 const toEmailAddress = process.env.TO_EMAIL_ADDRESS;
-const sendGridAPIKey = process.env.SENDGRID_API_KEY;
+const sendGridAPIKey = process.env.WODSENDGRIDAPIKEY;
 
 router.post("/sendmail", (req, res, next) => {
   if ((!sendGridAPIKey) || (sendGridAPIKey === "None")) {

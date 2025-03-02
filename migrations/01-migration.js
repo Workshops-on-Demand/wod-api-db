@@ -185,6 +185,8 @@ var migrationCommands = [
         },
         name: Sequelize.STRING,
         basestdid: Sequelize.INTEGER,
+        proto: Sequelize.STRING,
+        port: Sequelize.STRING,
         createdAt: {
           type: Sequelize.DATE,
         },
@@ -217,6 +219,11 @@ var migrationCommands = [
           type: Sequelize.STRING,
         },
         active: {
+          type: Sequelize.BOOLEAN,
+          allowNull: false,
+          defaultValue: false,
+        },
+        cleaned: {
           type: Sequelize.BOOLEAN,
           allowNull: false,
           defaultValue: false,

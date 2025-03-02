@@ -11,9 +11,9 @@ services:
       - "5432:5432"
     user: ${WODUID}:${WODGID}
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${DB_PW}
-      POSTGRES_DB: workshops-on-demand
+      POSTGRES_USER: ${WODPGUSER}
+      POSTGRES_PASSWORD: ${WODPGPASSWD}
+      POSTGRES_DB: ${WODPGDB}
       PGDATA: /var/lib/postgresql/data/apertis-qa-report
 
   adminer:

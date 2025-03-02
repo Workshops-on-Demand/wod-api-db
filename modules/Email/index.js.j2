@@ -5,14 +5,14 @@ var net = require('net');
 
 const branding = '{{ BRANDINGWOD }}';
 {% raw %}
-const usingSendgrid = process.env.SENDGRID_API_KEY;
-const fromAddress = process.env.FROM_EMAIL_ADDRESS;
+const usingSendgrid = process.env.WODSENDGRIDAPIKEY;
+const fromAddress = process.env.WODSENDER;
 
 let PORT = '';
 let APIDB = '';
 
 const sendPostfixEmail = ({ location, recipient, subject, content }) => {
-    PORT = process.env.POSTFIX_PORT;
+    PORT = process.env.WODPOSTPORT;
     APIDB = process.env.WODAPIDBFQDN;
   
   return new Promise((resolve, reject) => {
@@ -61,14 +61,14 @@ const sendEmail = ({
 }) =>
   new Promise((resolve, reject) => {
     // add plain version for mobile device previews.
-    console.log('inside send email');
+    console.log('inside send email with location ', location);
     const contentPlainText = content.replace(/<(?:.|\n)*?>/gm, '');
     const fromToEMails = {};
 
-	if ((!usingSendgrid) || (usingSendgrid === "None")) {
-		// We don't use sendgrid but our postfix server
-		sendPostfixEmail({
-			location: location,
+    if ((!usingSendgrid) || (usingSendgrid === "None")) {
+    // We don't use sendgrid but our postfix server
+    sendPostfixEmail({
+            location: location,
             recipient: recipient,
             subject: subject,
             content: contentPlainText,
@@ -81,62 +81,46 @@ const sendEmail = ({
               console.log('Promise sendPostfixEmail Rejected', error);
               return reject(error);
             });
-    }
-
-	// Here we use sendgrid
-    if (credentialsEmail)
-      fromToEMails.bcc = [
-        {
-          email: fromAddress,
-        },
-      ];
-    if (recipient)
-      fromToEMails.to = [
-        {
-          email: recipient,
-        },
-      ];
-    if (subject) fromToEMails.subject = subject;
-
-    const sg = require('sendgrid')(usingSendgrid);
-    const request = sg.emptyRequest({
-      method: 'POST',
-      path: '/v3/mail/send',
-      host: 'api.sendgrid.com',
-      body: {
-        personalizations: [fromToEMails],
-        from: {
-          name: `${branding} ${sessionType}`,
-          email: `${fromAddress}`,
-        },
-        content: [
-          {
-            type: 'text/plain',
-            value: contentPlainText,
-          },
-          {
-            type: 'text/html',
-            value: content,
-          },
-        ],
-      },
-    });
-    if (proxy === 'hackshack') {
-      console.log('*******request from WoD*********');
-      sg.API(request, (error, response) => {
-        if (error) {
-          console.log('Error Response', JSON.stringify(response, null, 2));
-          console.log(
-            'Email Error response received',
-            JSON.stringify(error, null, 2)
-          );
-          return reject(error);
-        }
-        return resolve(recipient);
-      });
     } else {
-      console.log('$$$$$$$$$$$$$request not from hack shack$$$$$$$$$$$$$$');
-      return resolve(recipient);
+        // Here we use sendgrid
+        if (credentialsEmail)
+           fromToEMails.bcc = [ { email: fromAddress, }, ];
+        if (recipient)
+           fromToEMails.to = [ { email: recipient, }, ];
+        if (subject) 
+            fromToEMails.subject = subject;
+
+        const sg = require('sendgrid')(usingSendgrid);
+        const request = sg.emptyRequest({
+            method: 'POST',
+            path: '/v3/mail/send',
+            host: 'api.sendgrid.com',
+            body: {
+                personalizations: [fromToEMails],
+                from: {
+                name: `${branding} ${sessionType}`,
+                email: `${fromAddress}`,
+                },
+                content: [
+                  { type: 'text/plain', value: contentPlainText, },
+                  { type: 'text/html', value: content, },
+                ],
+            },
+        });
+        if (proxy === 'hackshack') {
+          console.log('*******request from WoD*********');
+          sg.API(request, (error, response) => {
+            if (error) {
+              console.log('Error Response', JSON.stringify(response, null, 2));
+              console.log('Email Error response received', JSON.stringify(error, null, 2));
+              return reject(error);
+            }
+          return resolve(recipient);
+          });
+        } else {
+          console.log('$$$$$$$$$$$$$request not from hack shack$$$$$$$$$$$$$$');
+          return resolve(recipient);
+        }
     }
   });
 

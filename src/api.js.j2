@@ -26,13 +26,29 @@ dotenv.config();
 
 const branding = '{{ BRANDINGWOD }}';
 const brandingurl = '{{ BRANDINGURL }}';
-const SOURCE_ORIGIN = 'http://{{ WODFEFQDN }}:{{ WODFEPORT }}';
-const SOURCE_ORIGIN_EXT = 'http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}';
-const WODAPIDBEXTURL = 'http://{{ WODAPIDBEXTFQDN }}:{{ WODAPIDBEXTPORT }}';
-const WODAPIDBURL = 'http://{{ WODAPIDBFQDN }}:{{ WODAPIDBPORT }}';
+{% if WODFEPORT == 80 %}
+const SOURCE_ORIGIN = '{{ WODFEPROTO }}://{{ WODFEFQDN }}';
+{% else %}
+const SOURCE_ORIGIN = '{{ WODFEPROTO }}://{{ WODFEFQDN }}:{{ WODFEPORT }}';
+{% endif %}
+{% if WODFEEXTPORT == 80 %}
+const SOURCE_ORIGIN_EXT = '{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}';
+{% else %}
+const SOURCE_ORIGIN_EXT = '{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}';
+{% endif %}
+{% if WODAPIDBPORT == 80 %}
+const WODAPIDBURL = '{{ WODAPIDBPROTO }}://{{ WODAPIDBFQDN }}';
+{% else %}
+const WODAPIDBURL = '{{ WODAPIDBPROTO }}://{{ WODAPIDBFQDN }}:{{ WODAPIDBPORT }}';
+{% endif %}
+{% if WODAPIDBEXTPORT == 80 %}
+const WODAPIDBEXTURL = '{{ WODAPIDBEXTPROTO }}://{{ WODAPIDBEXTFQDN }}';
+{% else %}
+const WODAPIDBEXTURL = '{{ WODAPIDBEXTPROTO }}://{{ WODAPIDBEXTFQDN }}:{{ WODAPIDBEXTPORT }}';
+{% endif %}
 
 {% raw %}
-const { FROM_EMAIL_ADDRESS, WODAPIDBPORT } = process.env;
+const { WODSENDER, WODAPIDBPORT, WODAPIDBPROTO } = process.env;
 
 const app = express();
 
@@ -66,16 +82,16 @@ const options = {
       contact: {
         name: branding,
         url: brandingurl,
-        email: FROM_EMAIL_ADDRESS,
+        email: WODSENDER,
       },
     },
     servers: [
       {
-        url: `http://localhost:${WODAPIDBPORT}/api`,
+        url: `${WODAPIDBPROTO}://localhost:${WODAPIDBPORT}/api`,
         description: 'Local (development) server',
       },
       {
-        url: WODAPIDBEXTURL,
+        url: `${WODAPIDBEXTURL}/api`,
         description: 'Main (production) server',
       },
     ],

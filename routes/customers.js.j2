@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import MailChecker from 'mailchecker';
 
 dotenv.config();
-const denyList = process.env.DENYLIST;
+const denyList = process.env.WODDENYLIST;
 
 const router = express.Router();
 
@@ -183,6 +183,7 @@ router.post('/customer', async (req, res) => {
       where: { name: workshop.location },
       })
 
+    let dbRange = [0, 0];
     if (!location || location === null) {
       console.log('Location Not Available!');
       return res.status(202).send('No location available for this workshop - contact admin team');
@@ -193,12 +194,13 @@ router.post('/customer', async (req, res) => {
       } else {
          let basestdid = parseInt(location.basestdid);
          console.log('basestdid', basestdid, 'for location', location.name);
-         studentRange[0] += parseInt(basestdid);
-         studentRange[1] += parseInt(basestdid);
+         dbRange[0] = studentRange[0] + parseInt(basestdid);
+         dbRange[1] = studentRange[1] + parseInt(basestdid);
       }
     }
 
     console.log('student range now', studentRange);
+    console.log('DB range now', dbRange);
 
     // fetch the unassigned student account to assign to the requested customer
     const student = await models.student.findOne({
@@ -207,7 +209,8 @@ router.post('/customer', async (req, res) => {
           [op.eq]: false,
         },
         id: {
-          [op.between]: studentRange,
+          // We need to add basestdid in this check as it depends on the location
+          [op.between]: dbRange,
         },
         location: {
           [op.eq]: location.name,
