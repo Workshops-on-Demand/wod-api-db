@@ -34,7 +34,7 @@ You need to have node.js and a package manager; both npm (npm is installed with 
     POSTFIX_PORT=  // Port of Postfix server to send email
     FEEDBACK_URL= // Feedback URL 
     PRODUCTION_API_SERVER= // Production API Server hostname to access swagger doc 
-    DENYLIST=example1.org,example2.org // mandatory list for the time being to blacklist these issuers
+    WODDENYLIST=example1.org,example2.org // mandatory list for the time being to blacklist these issuers
   ```
 2. Run the PostgreSQL database using docker compose
 
