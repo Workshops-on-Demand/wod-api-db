@@ -8,7 +8,7 @@ import createEmailBody from '../modules/Email/createEmailBody';
 const branding = '{{ BRANDINGWOD }}';
 {% raw %}
 const router = express.Router();
-const apiKey = process.env.SENDGRID_API_KEY;
+const apiKey = process.env.WODSENDGRIDAPIKEY;
 
 const addUserToList = (userId, listId) =>
   new Promise((resolve, reject) => {

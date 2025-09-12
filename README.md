@@ -24,17 +24,17 @@ You need to have node.js and a package manager; both npm (npm is installed with 
   ```
     $ cd server
 
-    FROM_EMAIL_ADDRESS='' //hackshack email address to send email to registered customers
-    SENDGRID_API_KEY="" //sendgrid api key to send emails
+    WODSENDER='' //hackshack email address to send email to registered customers
+    WODSENDGRIDAPIKEY="" //sendgrid api key to send emails
     PORT=               // run the backed server at port
-    DB_PW=              // postgreSQL db password - you can set as you wish
+    WODPGDB=        // postgreSQL db database name - you can set as you wish
+    WODPGUSER=        // postgreSQL db user - you can set as you wish
+    WODPGPASSWD=        // postgreSQL db password - you can set as you wish
     JUPYTER_EMAIL=''    // email of JupyterHub server to prepare notebooks
-    FEEDBACK_URL=       // survey link
-    POSTFIX_EMAIL=  // email of robot user to send email to
-    POSTFIX_PORT=  // Port of Postfix server to send email
+    WODPOSTPORT=  // Port of Postfix server to send email
     FEEDBACK_URL= // Feedback URL 
     PRODUCTION_API_SERVER= // Production API Server hostname to access swagger doc 
-    DENYLIST=example1.org,example2.org // mandatory list for the time being to blacklist these issuers
+    WODDENYLIST=example1.org,example2.org // mandatory list for the time being to blacklist these issuers
   ```
 2. Run the PostgreSQL database using docker compose
 

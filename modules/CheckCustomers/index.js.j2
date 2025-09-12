@@ -10,11 +10,11 @@ dotenv.config();
 
 const branding = '{{ BRANDINGWOD }}';
 const branding2 = '{{ BRANDINGSLACK }}';
+const woduser = '{{ WODUSER }}';
 {% raw %}
 const { CronJob } = cron;
 
-const feedback_workshop_url = process.env.FEEDBACK_WORKSHOP_URL;
-const jupyterEmail = process.env.POSTFIX_EMAIL;
+const feedback_workshop_url = process.env.WODFEEDBACKURL;
 // Special Badge IDs
 const apprentice_badge_id = 1;
 const expert_badge_id = 2;
@@ -27,6 +27,122 @@ const expert_completed_workshops = 5;
 const hero_completed_workshops = 7;
 const superhero_completed_workshops = 10;
 const legend_completed_workshops = 15;
+
+const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
+
+const computeStudentId = async (dataValues) => {
+const location = dataValues.location;
+const studentId = dataValues.studentId;
+let refloc = await models.location.findOne({
+             where: { name: location },
+           })
+if (!refloc || refloc === null) {
+    console.log('No location available for this workshop - contact admin team');
+    return;
+}
+if (refloc.basestdid === null) {
+    console.log('No BaseStdId available for this location - contact admin team');
+    return;
+}
+console.log('Basestid found: ',refloc.basestdid);
+console.log('StudentId found: ',studentId);
+const stdid = parseInt(studentId)-parseInt(refloc.basestdid);
+console.log('studentId returned: ',stdid);
+return stdid;
+}
+
+const computeLocationUrl = async (workshop, dataValues) => {
+const location = dataValues.location;
+let refloc = await models.location.findOne({
+             where: { name: location },
+           })
+if (!refloc || refloc === null) {
+    console.log('No location available for this workshop - contact admin team');
+    return;
+}
+if (refloc.proto === null) {
+    console.log('No proto available for this workshop - contact admin team');
+    return;
+}
+if (refloc.port === null) {
+    console.log('No port available for this workshop - contact admin team');
+    return;
+}
+const jupurl = refloc.proto+'://'+location+':'+refloc.port+'/hub/login';
+return jupurl;
+};
+
+
+const sendResetMail = async (workshop,dataValues) => {
+
+const location = dataValues.location;
+const studentId = computeStudentId(dataValues);
+let subject = '';
+
+if (
+   (workshop.reset &&
+   workshop.capacity === 0 &&
+   (workshop.notebook === 'WKSHP-OneView' ||
+    workshop.notebook === 'WKSHP-OneView-Advanced')) ||
+   (workshop.reset &&
+    workshop.notebook != 'WKSHP-OneView' &&
+    workshop.notebook != 'WKSHP-OneView-Advanced')
+   ) {
+       console.log(
+       'sending reset email RESET',
+       workshop.notebook,
+       workshop.range
+       );
+       if (
+            workshop.notebook != 'WKSHP-OneView' &&
+            workshop.notebook != 'WKSHP-OneView-Advanced'
+           ) {
+             subject = `RESET ${studentId} ${dataValues.id}`;
+           } else {
+             subject = `RESET ${workshop.range} ${dataValues.id}`;
+           }
+           console.log('sending reset email RESET', workshop.notebook, workshop.range);
+           var jupyterEmail = `${woduser}@${location}`;
+           sendPostfixEmail({
+               location: location,
+               content: workshop.notebook,
+               recipient: jupyterEmail,
+               subject: subject,
+           })
+     }
+};
+
+
+const sendPurgeMail = async (workshop,dataValues) => {
+
+const location = dataValues.location;
+const studentId = computeStudentId(dataValues);
+
+if (
+    !workshop.reset ||
+    (workshop.reset &&
+     workshop.notebook != 'WKSHP-OneView' &&
+     workshop.notebook != 'WKSHP-OneView-Advanced')
+    ) {
+          await workshop.increment('capacity');
+          /* wait up to 2 minutes */
+          let waitmax = 12;
+          /* While assigned is true do not launch PURGE except after 2 minutes */
+          while (dataValues.student.assigned && waitmax > 0) {
+             /* sleep for 10 s */
+             sleep(10000);
+             waitmax--;
+          }
+          console.log('sending reset email PURGE', workshop.notebook, workshop.range);
+          var jupyterEmail = `${woduser}@${location}`;
+          sendPostfixEmail({
+              location: location,
+              recipient: jupyterEmail,
+              content: workshop.notebook,
+              subject: `PURGE ${studentId} ${dataValues.id}`,
+          })
+      }
+};
 
 const getHoursLeft = (ends) => {
   const oneHour = 1 * 60 * 60 * 1000;
@@ -62,6 +178,7 @@ const checkCompletedCourses = (email) => {
 };
 
 const checkCustomer = () => {
+  console.log('Checking customer');
   models.customer
     .findAll({ include: [{ all: true, nested: true }] })
     .then((customers) => {
@@ -69,6 +186,7 @@ const checkCustomer = () => {
         const { dataValues } = customer;
         const customerStatus = dataValues.active;
         const location = dataValues.location;
+        var jupyterEmail = `${woduser}@${location}`;
         const sessionType = dataValues.sessionType;
         const hoursLeft = getHoursLeft(dataValues.endDate);
         const mins = getMins(dataValues.startDate);
@@ -80,7 +198,7 @@ const checkCustomer = () => {
           where: { name: dataValues.sessionName },
         });
         if (location) {
-            studentId = dataValues.studentId;
+            studentId = parseInt(await computeStudentId(dataValues));
         } else {
             // Should not happen => error
             console.log('Undefined location - Please fix your setup');
@@ -88,6 +206,7 @@ const checkCustomer = () => {
         }
 
         // Send welcome email.
+        console.log('Handling student ',studentId);
         if (!dataValues.lastEmailSent && studentId != null && studentId > 0) {
             console.log('send email to welcome customer');
             let subject,
@@ -154,7 +273,7 @@ const checkCustomer = () => {
           mins > 10
         ) {
           console.log(
-            '*******Struck in welcome status for more than 10 minutes******'
+            '*******Stuck in welcome status for more than 10 minutes******'
           );
           let subject, heading, content, enjoyWorkshop;
           console.log(
@@ -175,7 +294,7 @@ const checkCustomer = () => {
               content = `Hello, ${dataValues.name}! <br> <br>According to our monitoring system, it appears that the deployment of your <b>${dataValues.sessionName}</b> workshop failed. 
           Your registration has been reset and you should now be able to register for your <a href="{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops/${workshop.replayId}">workshop</a>. <br> <br>
           We sincerely apologize for the inconvenience.<br>`;
-              enjoyWorkshop = 'Enjoy the workshop!';
+              //enjoyWorkshop = 'Issue with the workshop!';
               sendEmail({
                 location: location,
                 sessionType: sessionType,
@@ -196,15 +315,11 @@ const checkCustomer = () => {
               });
               console.log('sent error email');
             })
-            .then(async () => {
-              if (
-                !workshop.reset ||
-                (workshop.reset &&
-                  workshop.notebook != 'WKSHP-OneView' &&
-                  workshop.notebook != 'WKSHP-OneView-Advanced')
-              ) {
-                await workshop.increment('capacity');
-              }
+            .then(() => {
+                sendResetMail(workshop,dataValues);
+            })
+            .then(() => {
+                sendPurgeMail(workshop,dataValues);
             })
             .catch((error) => {
               console.log('Promise Rejected', error);
@@ -220,6 +335,7 @@ const checkCustomer = () => {
             registerMore,
             credentialsEmail,
             enjoyWorkshop;
+            let jupurl = computeLocationUrl(workshop,dataValues);
             subject = branding+' Workshops-on-Demand credentials';
             heading = 'Your '+branding+' Workshops-on-Demand credentials';
             content = `${dataValues.name}, <br/> <br/>The clock has started! Begin your ${branding} Workshop-on-Demand, <b>${dataValues.sessionName}</b> workshop using the credentials below.
@@ -227,7 +343,8 @@ const checkCustomer = () => {
             <b>NOTE:</b> You may have to click the Launch Server button once you log into your Jupyter student account.<br/><br/>
             Use below credentials to start the workshop:<br/><br/>
             <b>User Name: ${dataValues.student.username}</b><br/>
-            <b>Password: ${dataValues.student.password}</b><br/>`;
+            <b>Password: ${dataValues.student.password}</b><br/>
+            <b>URL: ${jupurl}</b><br/>`;
             registerMore = `Remember, to ensure a successful experience with this workshop, please take a moment to review this <a href="${workshop.replayLink}">video replay</a> of the live workshop.`+branding2+`<br/><br/>`;
             buttonLabel = 'Start Workshop';
             enjoyWorkshop = 'Enjoy the workshop!';
@@ -264,6 +381,7 @@ const checkCustomer = () => {
         if (hoursLeft <= 1 && dataValues.lastEmailSent === 'credentials') {
           let subject, heading, content, buttonLabel, enjoyWorkshop;
 
+            let jupurl = computeLocationUrl(workshop,dataValues);
             subject =
               'Your '+branding+' Workshops-on-Demand session will end in one hour';
             heading =
@@ -272,7 +390,8 @@ const checkCustomer = () => {
             requiring it in the future. Your account will be erased after your session has ended. <br/><br/>`+branding2+
             `Remember to use these credentials to connect to the workshop:<br/><br/>
             <b>User Name: ${dataValues.student.username}</b><br/>
-            <b>Password: ${dataValues.student.password}</b><br/>`;
+            <b>Password: ${dataValues.student.password}</b><br/>
+            <b>URL: ${jupurl}</b><br/>`;
             buttonLabel = 'View Workshop';
             enjoyWorkshop = 'Enjoy the workshop!';
           return sendEmail({
@@ -322,7 +441,7 @@ const checkCustomer = () => {
             heading = `Thanks for participating in the ${branding} Workshops-on-Demand!`;
             content = `Time’s up! Congratulations on finishing the <b>${dataValues.sessionName}</b> workshop. 
               Please find your commemorative badge below, recognizing your achievement. Share your accomplishment with friends and colleagues by clicking on the social links below.`;
-            registerMore = `Ready for another Workshop? Register <a href="http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">here</a>.`;
+            registerMore = `Ready for another Workshop? Register <a href="{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">here</a>.`;
             shareWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
             feedback_url = feedback_workshop_url;
           console.log(
@@ -365,46 +484,11 @@ const checkCustomer = () => {
                   credentialsEmail: false,
                 });
               })
-              .then(async () => {
-                if (
-                  (workshop.reset &&
-                    workshop.capacity === 0 &&
-                    (workshop.notebook === 'WKSHP-OneView' ||
-                      workshop.notebook === 'WKSHP-OneView-Advanced')) ||
-                  (workshop.reset &&
-                    workshop.notebook != 'WKSHP-OneView' &&
-                    workshop.notebook != 'WKSHP-OneView-Advanced')
-                ) {
-                  console.log(
-                    'sending reset email RESET',
-                    workshop.notebook,
-                    workshop.range
-                  );
-                  if (
-                    workshop.notebook != 'WKSHP-OneView' &&
-                    workshop.notebook != 'WKSHP-OneView-Advanced'
-                  ) {
-                    subject = `RESET ${studentId}`;
-                  } else {
-                    subject = `RESET ${workshop.range}`;
-                  }
-                  sendPostfixEmail({
-                    location: location,
-                    content: workshop.notebook,
-                    recipient: jupyterEmail,
-                    subject: subject,
-                  });
-                }
+              .then(() => {
+                  sendResetMail(workshop,dataValues);
               })
-              .then(async () => {
-                if (
-                  !workshop.reset ||
-                  (workshop.reset &&
-                    workshop.notebook != 'WKSHP-OneView' &&
-                    workshop.notebook != 'WKSHP-OneView-Advanced')
-                ) {
-                  await workshop.increment('capacity');
-                }
+              .then(() => {
+                  sendPurgeMail(workshop,dataValues);
               })
               .then(() => {
                 checkSpecialBadges();
@@ -451,7 +535,7 @@ const checkSpecialBadges = () => {
               number
             ) => `Way to go! Congratulations on finishing another ${branding} Workshop-on-Demand. In recognition of your having finished  <b>${number} workshops</b>, 
               please find your commemorative badge below. Feel free to share your accomplishment with friends and colleagues by clicking on the social links below.`;
-            registerMore = `Continue to level up and collect more badges by registering for <a href="http://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">additional workshops</a>.`;
+            registerMore = `Continue to level up and collect more badges by registering for <a href="{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/workshops">additional workshops</a>.`;
             shareSpecialWorkshop = `Share Workshops-on-Demand with your colleagues!<br/>`;
             feedback_url = feedback_workshop_url;
           checkCompletedCourses(dataValues.email).then(async (result) => {

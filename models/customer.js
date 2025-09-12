@@ -45,6 +45,9 @@
  *          active:
  *            type: boolean
  *            description: customer will be active between the workshop start and end date
+ *          cleaned:
+ *            type: boolean
+ *            description: cleanup action was performed for that customer
  *          lastEmailSent:
  *            type: string
  *            description: lastEmailSent can be welcome | credentials |  expiring | expired
@@ -97,6 +100,11 @@ module.exports = (sequelize, DataTypes) => {
       location: DataTypes.STRING,
       proxy: DataTypes.STRING,
       active: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      cleaned: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
