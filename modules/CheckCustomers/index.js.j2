@@ -431,19 +431,19 @@ const checkCustomer = () => {
             registerMore,
             shareWorkshop,
             feedback_url = '',
-            if (workshop.badgeImg && workshop.badgeImg.includes('://')) {
-                badgeImg = workshop.badgeImg;
-                console.log('URL found in badgeImg: ',badgeImg);
-            } else if (workshop.badgeImg) {
-                badgeImg = "{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/img/badges/"+workshop.badgeImg;
-                console.log('URL not found in badgeImg adding it: ',badgeImg);
-            } else {
-                badgeImg = null;
-            )
             replayId =
               workshop.replayId || workshop.replayId === 0
                 ? workshop.replayId
                 : null;
+            if (workshop.badgeImg && workshop.badgeImg.includes('://')) {
+                let badgeImg = workshop.badgeImg;
+                console.log('URL found in badgeImg: ',badgeImg);
+            } else if (workshop.badgeImg) {
+                let badgeImg = "{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/img/badges/"+workshop.badgeImg;
+                console.log('URL not found in badgeImg adding it: ',badgeImg);
+            } else {
+                let badgeImg = null;
+            };
             subject =
               'Thanks for participating in the '+branding+' Workshops-on-Demand!';
             heading = `Thanks for participating in the ${branding} Workshops-on-Demand!`;
