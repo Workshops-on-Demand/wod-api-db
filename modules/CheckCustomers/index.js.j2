@@ -431,7 +431,15 @@ const checkCustomer = () => {
             registerMore,
             shareWorkshop,
             feedback_url = '',
-            badgeImg = workshop.badgeImg ? workshop.badgeImg : null,
+            if (workshop.badgeImg && workshop.badgeImg.includes('://')) {
+                badgeImg = workshop.badgeImg;
+                console.log('URL found in badgeImg: ',badgeImg);
+            } else if (workshop.badgeImg) {
+                badgeImg = "{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}/img/badges/"+workshop.badgeImg;
+                console.log('URL not found in badgeImg adding it: ',badgeImg);
+            } else {
+                badgeImg = null;
+            )
             replayId =
               workshop.replayId || workshop.replayId === 0
                 ? workshop.replayId
