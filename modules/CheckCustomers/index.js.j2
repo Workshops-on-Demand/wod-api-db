@@ -51,24 +51,25 @@ console.log('studentId returned: ',stdid);
 return stdid;
 }
 
-const computeLocationUrl = async (workshop, dataValues) => {
+const computeLocationUrl = async (dataValues) => {
 const location = dataValues.location;
 let refloc = await models.location.findOne({
              where: { name: location },
            })
 if (!refloc || refloc === null) {
     console.log('No location available for this workshop - contact admin team');
-    return;
+    return '';
 }
 if (refloc.proto === null) {
     console.log('No proto available for this workshop - contact admin team');
-    return;
+    return '';
 }
 if (refloc.port === null) {
     console.log('No port available for this workshop - contact admin team');
-    return;
+    return '';
 }
 const jupurl = refloc.proto+'://'+location+':'+refloc.port+'/hub/login';
+console.log('jupurl returned: ',jupurl);
 return jupurl;
 };
 
@@ -335,7 +336,7 @@ const checkCustomer = () => {
             registerMore,
             credentialsEmail,
             enjoyWorkshop;
-            let jupurl = computeLocationUrl(workshop,dataValues);
+            let jupurl = (await computeLocationUrl(dataValues));
             subject = branding+' Workshops-on-Demand credentials';
             heading = 'Your '+branding+' Workshops-on-Demand credentials';
             content = `${dataValues.name}, <br/> <br/>The clock has started! Begin your ${branding} Workshop-on-Demand, <b>${dataValues.sessionName}</b> workshop using the credentials below.
@@ -381,7 +382,7 @@ const checkCustomer = () => {
         if (hoursLeft <= 1 && dataValues.lastEmailSent === 'credentials') {
           let subject, heading, content, buttonLabel, enjoyWorkshop;
 
-            let jupurl = computeLocationUrl(workshop,dataValues);
+            let jupurl = (await computeLocationUrl(dataValues));
             subject =
               'Your '+branding+' Workshops-on-Demand session will end in one hour';
             heading =
