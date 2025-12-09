@@ -1,4 +1,4 @@
-#API DB Server Workshops On Demand
+# API DB Server Workshops On Demand
 
 This is a Workshops-on-Demand registration portal application. It provides an open API 3.0 based api used to manage the Workshops-on-Demand project. it also provides a Database hosting the different status of participants, workshops, students. 
 
