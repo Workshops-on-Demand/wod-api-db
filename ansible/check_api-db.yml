@@ -15,8 +15,8 @@
         proto: tcp
         state: enabled
       when:
-        - ansible_distribution == "Ubuntu"
-        - ansible_distribution_major_version >= "20"
+        - ansible_facts['distribution'] == "Ubuntu"
+        - ansible_facts['distribution_major_version'] >= "20"
 
     - name: Setup firewalld TCP rules
       become: true
@@ -26,7 +26,7 @@
         permanent: true
         state: enabled
       when:
-        - ansible_distribution == "CentOS" or ansible_distribution == "Rocky"
+        - ansible_facts['distribution'] == "CentOS" or ansible_facts['distribution'] == "Rocky"
 
     - name: Find WoD api-db branded files
       ansible.builtin.find:
