@@ -44,7 +44,7 @@
           - postgresql-client
           - netcat-openbsd
       when:
-        - ansible_os_family == "Debian"
+        - ansible_facts['os_family'] == "Debian"
 
     - name: Ensure all required RPM packages are installed
       become: true
@@ -64,7 +64,7 @@
           - netcat
         state: present
       when:
-        - ansible_distribution == "CentOS" or ansible_distribution == "Rocky"
+        - ansible_facts['distribution'] == "CentOS" or ansible_facts['distribution'] == "Rocky"
 
     - name: Ensure required directories under /usr/local are owned by "{{ WODUSER }}"
       become: true
