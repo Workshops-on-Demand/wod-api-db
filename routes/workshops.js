@@ -134,6 +134,64 @@ router.get('/workshops', (req, res) => {
     });
 });
 
+// Get all unique categories across active workshops.
+// NOTE: this route MUST appear before /workshops/:id so that Express does not
+// treat the literal string "categories" as a value for the :id parameter.
+/**
+ * @swagger
+ * path:
+ *  /workshops/categories:
+ *    get:
+ *      summary: Returns a sorted array of all distinct category values found
+ *               across active workshops.
+ *      tags: [Workshops]
+ *      responses:
+ *        "200":
+ *          description: A JSON array of category strings
+ *          content:
+ *            application/json:
+ *              schema:
+ *                type: array
+ *                items:
+ *                  type: string
+ *                example: ["AI/ML", "Infrastructure", "Open Source"]
+ */
+router.get('/workshops/categories', (req, res) => {
+  models.workshop
+    .findAll({
+      attributes: ['category'],
+      where: { active: true },
+      logging: false,
+    })
+    .then((entries) => {
+      const seen = new Set();
+      entries.forEach(({ dataValues }) => {
+        const { category } = dataValues;
+        if (!category) return;
+        // category may be stored as an array (ARRAY column) or as a
+        // comma-separated / JSON-stringified string depending on the DB schema.
+        // Handle all three cases uniformly.
+        const cats = Array.isArray(category)
+          ? category
+          : String(category)
+              .replace(/^\[|\]$/g, '') // strip surrounding [] if JSON-like
+              .split(',')
+              .map((c) => c.trim().replace(/^"|"$/g, '')); // strip quotes
+        cats.forEach((c) => {
+          const trimmed = c.trim();
+          if (trimmed) seen.add(trimmed);
+        });
+      });
+      const sorted = [...seen].sort((a, b) =>
+        a.toLowerCase().localeCompare(b.toLowerCase()),
+      );
+      res.status(200).send(sorted);
+    })
+    .catch((error) => {
+      res.status(400).send({ error });
+    });
+});
+
 /**
  * @swagger
  * path:
