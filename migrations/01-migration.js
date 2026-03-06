@@ -8,8 +8,9 @@ var Sequelize = require('sequelize');
  * createTable "workshops", deps: []
  * createTable "students", deps: []
  * createTable "customers", deps: []
- * createTable "user", deps: []
+ * createTable "users", deps: []
  * createTable "role", deps: []
+ * createTable "user_roles", deps: []
  * createTable "replay", deps: []
  * createTable "special_badges", deps: []
  * createTable "locations", deps: []
@@ -312,6 +313,37 @@ var migrationCommands = [
             key: 'id',
           },
           // allowNull: false,
+        },
+        createdAt: Sequelize.DATE,
+        updatedAt: Sequelize.DATE,
+      },
+      {},
+    ],
+  },
+  {
+    fn: 'createTable',
+    params: [
+      'user_roles',
+      {
+        userId: {
+          type: Sequelize.INTEGER,
+          primaryKey: true,
+          onUpdate: 'NO ACTION',
+          onDelete: 'NO ACTION',
+          references: {
+            model: 'users',
+            key: 'id',
+          },
+        },
+	roleId: {
+          type: Sequelize.INTEGER,
+          primaryKey: true,
+          onUpdate: 'NO ACTION',
+          onDelete: 'NO ACTION',
+          references: {
+            model: 'roles',
+            key: 'id',
+          },
         },
         createdAt: Sequelize.DATE,
         updatedAt: Sequelize.DATE,
