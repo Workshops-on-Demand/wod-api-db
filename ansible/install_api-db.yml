@@ -28,6 +28,16 @@
           - unzip
         state: present
 
+    - name: Ensure nginx reverse proxy is installed
+      become: true
+      become_user: root
+      ansible.builtin.package:
+        name:
+          - nginx
+          - python3-certbot-nginx
+        state: present
+      when: WODREVPROXY == 1
+
     - name: Ensure all required DEB packages are installed
       become: true
       become_user: root

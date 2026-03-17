@@ -54,6 +54,15 @@
         mode: "0755"
       with_fileglob: ["{{ WODSCRIPTDIR }}//wod-update-db.*"]
 
+    - name: Copy reverse proxy conf file to /etc/nginx
+      become: true
+      become_user: root
+      ansible.builtin.template:
+        src: "{{ WODANSIBLEDIR }}/files/nginx.conf.t2"
+        dest: "/etc/nginx/{{ item | basename | regex_replace('.j2$') }}"
+        mode: "0644"
+      when: WODREVPROXY != "0"
+
     - name: Test private tasks YAML file
       ansible.builtin.command: ls "{{ WODANSIBLEPRIVDIR }}/check_api-db.yml"
       register: acj_path
@@ -76,3 +85,16 @@
       with_items:
         - docker
         - wod-npm-app
+
+    - name: Enable reverse proxy
+      become: true
+      become_user: root
+      ansible.builtin.systemd:
+        state: restarted
+        daemon_reload: true
+        enabled: true
+        name: "{{ item }}"
+      with_items:
+        - nginx
+        - certbot.timer
+      when: WODREVPROXY != "0"
