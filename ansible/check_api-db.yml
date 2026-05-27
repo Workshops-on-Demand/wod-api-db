@@ -63,6 +63,19 @@
         mode: "0644"
       when: WODREVPROXY != "0"
 
+    - name: Setup ufw firewall TCP rules for certbot
+      become: true
+      become_user: root
+      community.general.ufw:
+        rule: allow
+        port: http
+        proto: tcp
+        state: enabled
+      when:
+        - ansible_distribution == "Ubuntu"
+        - ansible_distribution_major_version >= "20"
+        - WODREVPROXY != "0"
+
     - name: Test private tasks YAML file
       ansible.builtin.command: ls "{{ WODANSIBLEPRIVDIR }}/check_api-db.yml"
       register: acj_path
