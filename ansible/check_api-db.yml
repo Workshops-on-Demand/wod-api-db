@@ -68,9 +68,12 @@
       become_user: root
       community.general.ufw:
         rule: allow
-        port: http
+        port: {{ item }}
         proto: tcp
         state: enabled
+      with_items:
+        - http
+        - https
       when:
         - ansible_distribution == "Ubuntu"
         - ansible_distribution_major_version >= "20"
