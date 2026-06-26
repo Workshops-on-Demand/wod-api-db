@@ -2,7 +2,7 @@
 services:
 
   db:
-    image: postgres:17
+    image: postgres
     container_name: postgres
     restart: always
     volumes:
