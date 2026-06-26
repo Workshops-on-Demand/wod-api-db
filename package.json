@@ -1,6 +1,6 @@
 {
   "name": "server",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "",
   "main": "api.js",
   "scripts": {
@@ -11,7 +11,7 @@
     "reset-data": "npx sequelize db:drop && npx sequelize db:create && npx sequelize db:migrate && npx sequelize db:seed:all"
   },
   "keywords": [],
-  "author": "Pramod Sareddy",
+  "author": "WoD team",
   "license": "ISC",
   "dependencies": {
     "@babel/preset-env": "^7.9.5",
