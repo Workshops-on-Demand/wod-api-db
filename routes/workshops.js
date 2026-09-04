@@ -1,8 +1,7 @@
 import express from 'express';
 import models from '../models';
 const { authJwt } = require('../middleware');
-const Sequelize = require('sequelize');
-const op = Sequelize.Op;
+const { Op } = require('sequelize');
 
 const router = express.Router();
 
@@ -65,23 +64,27 @@ router.get('/workshops', (req, res) => {
     .findAll({
       attributes: ['email', 'sessionName'],
       group: ['email', 'sessionName'],
-      logging: false
+      logging: false,
     })
-    .then(customers => {
-    // customers is the real array returned by Sequelize
-    const Result = customers.reduce((accum, customer) => {
-      const { dataValues } = customer;
-      if (!accum[dataValues.sessionName]) {
-        accum[dataValues.sessionName] = 1;
-      } else {
-        accum[dataValues.sessionName] += 1;
-      }
-      return accum;
-    }, 0);
-    console.log(Result);
-    })
+    // Sequelize v6 dropped Bluebird in favour of native Promises, so the
+    // Bluebird-only Promise#reduce() used in v5 is no longer available.
+    // Resolve the array first, then reduce it with plain Array.prototype.reduce.
+    .then((customers) =>
+      customers.reduce((accum, customer) => {
+        const { dataValues } = customer;
+        if (!accum[dataValues.sessionName]) {
+          accum[dataValues.sessionName] = 1;
+        } else {
+          accum[dataValues.sessionName] += 1;
+        }
+        return accum;
+      }, {})
+    )
     .then(async (workshopsCount) => {
-      const sortedPopular = Object.keys(workshopsCount).sort(function (a, b) { return workshopsCount[b] - workshopsCount[a] }).slice(0, 10);
+      const sortedPopular = Object.keys(workshopsCount)
+        .sort((a, b) => workshopsCount[b] - workshopsCount[a])
+        .slice(0, 10);
+
       if (
         typeof req.query.active != 'undefined' &&
         (req.query.active || !req.query.active)
@@ -100,11 +103,11 @@ router.get('/workshops', (req, res) => {
           .then((entries) => {
             return entries.map(({ dataValues }) => {
               if (sortedPopular.includes(dataValues.name)) {
-                return { ...dataValues, popular: true }
+                return { ...dataValues, popular: true };
               } else {
-                return { ...dataValues, popular: false }
+                return { ...dataValues, popular: false };
               }
-            })
+            });
           })
           .catch((error) => {
             res.status(400).send({ error });
@@ -121,11 +124,11 @@ router.get('/workshops', (req, res) => {
           .then((entries) => {
             return entries.map(({ dataValues }) => {
               if (sortedPopular.includes(dataValues.name)) {
-                return { ...dataValues, popular: true }
+                return { ...dataValues, popular: true };
               } else {
-                return { ...dataValues, popular: false }
+                return { ...dataValues, popular: false };
               }
-            })
+            });
           })
           .catch((error) => {
             res.status(400).send({ error });
@@ -187,7 +190,7 @@ router.get('/workshops/categories', (req, res) => {
         });
       });
       const sorted = [...seen].sort((a, b) =>
-        a.toLowerCase().localeCompare(b.toLowerCase()),
+        a.toLowerCase().localeCompare(b.toLowerCase())
       );
       res.status(200).send(sorted);
     })
@@ -256,7 +259,7 @@ router.get('/workshopsBeta', [authJwt.verifyToken], (req, res) => {
     .findAll({
       where: {
         beta: {
-          [op.eq]: false,
+          [Op.eq]: false,
         },
       },
     })
