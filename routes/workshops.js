@@ -67,7 +67,9 @@ router.get('/workshops', (req, res) => {
       group: ['email', 'sessionName'],
       logging: false
     })
-    .reduce((accum, customer) => {
+    .then(customers => {
+    // customers is the real array returned by Sequelize
+    const Result = customers.reduce((accum, customer) => {
       const { dataValues } = customer;
       if (!accum[dataValues.sessionName]) {
         accum[dataValues.sessionName] = 1;
@@ -75,7 +77,9 @@ router.get('/workshops', (req, res) => {
         accum[dataValues.sessionName] += 1;
       }
       return accum;
-    }, {})
+    }, 0);
+    console.log(Result);
+    })
     .then(async (workshopsCount) => {
       const sortedPopular = Object.keys(workshopsCount).sort(function (a, b) { return workshopsCount[b] - workshopsCount[a] }).slice(0, 10);
       if (
