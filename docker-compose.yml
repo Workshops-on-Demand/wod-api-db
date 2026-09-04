@@ -4,6 +4,7 @@ services:
   db:
     image: postgres
     container_name: postgres
+    pull_policy: always
     restart: always
     volumes:
       - ./data:/var/lib/postgresql/data
@@ -24,6 +25,7 @@ services:
   adminer:
     image: adminer
     restart: always
+    pull_policy: always
     ports:
       - "8083:8080"
     depends_on:
