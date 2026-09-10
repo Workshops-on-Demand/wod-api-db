@@ -189,6 +189,12 @@ const checkCustomer = () => {
         const hoursLeft = getHoursLeft(dataValues.endDate);
         const mins = getMins(dataValues.startDate);
 
+        // Do not loop if that customer is old
+        if (dataValues.lastEmailSent && 
+          (dataValues.lastEmailSent = "expired" || dataValues.lastEmailSent = "error")) {
+          return;
+        }
+	
         let workshop, studentId;
 
         // fetch the customer requested workshop from workshops table
