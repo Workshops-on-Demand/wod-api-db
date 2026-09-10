@@ -191,7 +191,7 @@ const checkCustomer = () => {
 
         // Do not loop if that customer is old
         if (dataValues.lastEmailSent && 
-          (dataValues.lastEmailSent = "expired" || dataValues.lastEmailSent = "error")) {
+          (dataValues.lastEmailSent === 'expired' || dataValues.lastEmailSent === 'error')) {
           return;
         }
 	
