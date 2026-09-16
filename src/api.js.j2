@@ -17,6 +17,9 @@ import emailsRoutes from '../routes/emails';
 import specialBadgesRoutes from '../routes/specialBadges';
 import locationRoutes from '../routes/locations';
 import runCronJobs from '../modules/CheckCustomers';
+{% endraw %}
+{{ WODAPIIMPORTPRIV }}
+{% raw %}
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const db = require('../models');
@@ -66,6 +69,9 @@ app.use(
   })
 );
 app.use(bodyParser.json({ limit: '20mb' }));
+{% endraw %}
+{{ WODAPIUSEPRIV }}
+{% raw %}
 
 // Swagger set up
 const options = {
