@@ -2,14 +2,13 @@
 
 This is a Workshops-on-Demand registration portal application. It provides an open API 3.0 based api used to manage the Workshops-on-Demand project. it also provides a Database hosting the different status of participants, workshops, students. 
 
-### Getting Started
+## Getting Started
 To run the backend server API, follow the steps below:
 
-## Prerequisites
-You need to have node.js and a package manager; both npm (npm is installed with node.js) and yarn package manager.
+### Prerequisites
+You need to have node.js and the npm package manager
 
 - [Node Download Page](https://nodejs.org/en/download/) - The latest LTS version will have node.js, npm, and npx.   
-- [Yarn Package Manager](https://yarnpkg.com/en/docs/getting-started) - Required.  
 
 1. Install NPM modules
 
@@ -62,10 +61,11 @@ You need to have node.js and a package manager; both npm (npm is installed with 
 
 ## Debug npm issues and security updates
 
-Rebuild package-lock.json after package.json update:
+Rebuild package-lock.json after package.json update (new js module version):
 ```
 npm install --package-lock-only
 ```
+Commit the resulting file in git.
 
 Information on security of modules:
 ```
