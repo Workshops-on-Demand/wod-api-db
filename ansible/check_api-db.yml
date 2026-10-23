@@ -54,6 +54,18 @@
         mode: "0755"
       with_fileglob: ["{{ WODSCRIPTDIR }}//wod-update-db.*"]
 
+    - name: Setup crontab for daily backup of customers table
+      become: true
+      become_user: root
+      ansible.builtin.cron:
+        name: wod-backup-customer
+        minute: "{{ 59 | random(seed=inventory_hostname) }} "
+        hour: "03"
+        user: "{{ WODUSER }}"
+        job: /usr/local/bin/wod-backup-db.sh
+        cron_file: wod-backup-customer
+        state: present
+
     - name: Test private tasks YAML file
       ansible.builtin.command: ls "{{ WODANSIBLEPRIVDIR }}/check_api-db.yml"
       register: acj_path
