@@ -21,7 +21,7 @@
           - jq
           - moreutils
           - net-tools
-          - nodejs=22.23.4
+          - nodejs=22.23.4-1nodesource1
           - npm=10.9.9
           - telnet
           - man
