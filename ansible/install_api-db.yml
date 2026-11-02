@@ -21,8 +21,8 @@
           - jq
           - moreutils
           - net-tools
-          - Node.js 22.23.4
-          - npm v10.9.9
+          - Nodejs=22.23.4
+          - npm=10.9.9
           - telnet
           - man
           - unzip
