@@ -6,26 +6,28 @@
     - name: Base setup for a base system
       ansible.builtin.include_tasks: "{{ WODINSANSDIR }}/install_base_system.yml"
 
+    - name: NodeJS setup
+      ansible.builtin.include_tasks: "{{ WODINSANSDIR }}/install_nodesource.yml"
+
     - name: Ensure all required packages are installed
       become: true
       become_user: root
       ansible.builtin.package:
         name:
           - ansible
-          - python3
-          - python3-pip
-          - git
-          - rsync
-          - wget
           - bzip2
+          - git
           - jq
+          - man
           - moreutils
           - net-tools
           - nodejs
-          - npm
+          - python3
+          - python3-pip
+          - rsync
           - telnet
-          - man
           - unzip
+          - wget
         state: present
 
     - name: Ensure all required DEB packages are installed
