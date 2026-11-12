@@ -1,5 +1,5 @@
 {% raw %}
-import cron from 'cron';
+import { CronJob } from 'cron';
 import models from '../../models';
 import createEmailBody from '../Email/createEmailBody';
 import { sendEmail, sendPostfixEmail } from '../Email';
@@ -13,7 +13,6 @@ const branding2 = '{{ BRANDINGSLACK }}';
 const woduser = '{{ WODUSER }}';
 const wodexturl = '{{ WODFEEXTPROTO }}://{{ WODFEEXTFQDN }}:{{ WODFEEXTPORT }}';
 {% raw %}
-const { CronJob } = cron;
 
 const feedback_workshop_url = process.env.WODFEEDBACKURL;
 // Special Badge IDs
@@ -784,7 +783,7 @@ const checkSpecialBadges = () => {
 };
 
 const runCronJobs = () => {
-  const jobToCheckCustomers = new CronJob({
+  const jobToCheckCustomers = CronJob.from({
     // cronTime: '00 00 * * * *', // every hour
     cronTime: '*/20 * * * * *', // every 20 seconds
     onTick: () => checkCustomer(),

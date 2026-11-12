@@ -59,3 +59,33 @@ You need to have node.js and a package manager; both npm (npm is installed with 
   $ cd server
   $ npm run reset-data
   ```
+
+## Debug npm issues and security updates
+
+Rebuild package-lock.json after package.json update:
+```
+npm install --package-lock-only
+```
+
+Information on security of modules:
+```
+npm audit fix
+```
+
+Clean env to reinstall only needed modules:
+```
+rm -rf node_modules/ ; rm -f package-lock.json
+npm install
+```
+
+Find which module is using a given module:
+```
+npm explain given
+npm ls given
+```
+
+See tree of dependencies for a given module:
+```
+npm install howfat
+npx howfat given
+```
