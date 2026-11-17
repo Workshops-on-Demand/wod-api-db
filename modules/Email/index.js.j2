@@ -90,32 +90,34 @@ const sendEmail = ({
         if (subject) 
             fromToEMails.subject = subject;
 
-        const sg = require('sendgrid')(usingSendgrid);
-        const request = sg.emptyRequest({
-            method: 'POST',
-            path: '/v3/mail/send',
-            host: 'api.sendgrid.com',
-            body: {
-                personalizations: [fromToEMails],
-                from: {
+        const sgMail = require('@sendgrid/mail');
+        sgMail.setApiKey(usingSendgrid);
+        const msg = {
+            personalizations: [fromToEMails],
+            from: {
                 name: `${branding} ${sessionType}`,
                 email: `${fromAddress}`,
-                },
-                content: [
-                  { type: 'text/plain', value: contentPlainText, },
-                  { type: 'text/html', value: content, },
-                ],
             },
-        });
+            content: [
+                { type: 'text/plain', value: contentPlainText },
+                { type: 'text/html', value: content },
+            ],
+        };
+
         if (proxy === 'hackshack') {
           console.log('*******request from WoD*********');
-          sg.API(request, (error, response) => {
-            if (error) {
-              console.log('Error Response', JSON.stringify(response, null, 2));
-              console.log('Email Error response received', JSON.stringify(error, null, 2));
-              return reject(error);
-            }
-          return resolve(recipient);
+          sgMail.send(msg)
+          .then(() => resolve(recipient))
+          .catch(error => {
+              console.log(
+                  'Error Response',
+                  JSON.stringify(error.response?.body || {}, null, 2)
+              );
+              console.log(
+                  'Email Error response received',
+                  JSON.stringify(error, null, 2)
+              );
+              reject(error);
           });
         } else {
           console.log('$$$$$$$$$$$$$request not from hack shack$$$$$$$$$$$$$$');

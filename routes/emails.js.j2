@@ -72,7 +72,7 @@ router.post('/emails', (req, res) => {
     if (listId && body && body.persisted_recipients) {
       return addUserToList(body.persisted_recipients[0], listId)
         .then(() => res.status(200).send(body))
-        .catch(() => res.status(400).send);
+        .catch(() => res.status(400).send());
     }
 
     return res.status(200).send(body);
@@ -108,6 +108,10 @@ router.post('/email/send-feedback', (req, res) => {
     credentialsEmail: false,
   }).then(() => {
     return res.status(200).send('email sent successfully');
+  })
+  .catch(error => {
+    debug('send-feedback-email:', error);
+    return res.status(500).send('Unable to send email');
   });
 });
 
