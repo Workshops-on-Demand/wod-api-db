@@ -16,7 +16,6 @@
   "dependencies": {
     "@babel/preset-env": "^8.0.7",
     "@sendgrid/mail": "^8.1.6",
-    "babel-preset-env": "^1.7.0",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.4.0",
     "compression": "^1.8.2",
@@ -43,5 +42,11 @@
     "@babel/cli": "^8.1.0",
     "@babel/core": "^8.1.2",
     "@babel/node": "^8.1.2"
+  },
+  "overrides": {
+   "browserslist": "^4.29.6",
+   "glob": "^14.0.6",
+   "minimatch": "^11.0.9",
+   "uuid": "^14.0.3"
   }
 }

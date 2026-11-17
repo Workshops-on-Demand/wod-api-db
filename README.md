@@ -89,3 +89,8 @@ See tree of dependencies for a given module:
 npm install howfat
 npx howfat given
 ```
+
+Check versions avaibility for package
+```
+npm view package version
+```
