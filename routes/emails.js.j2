@@ -24,8 +24,8 @@ const addUserToList = (userId, listId) =>
 
     request(options, (error, response, body) => {
       if (error) {
-        debug('Email error:', error);
-        debug('Email error body:', body);
+        console.debug('Email error:', error);
+        console.debug('Email error body:', body);
         return reject(error);
       }
       return resolve(body);
@@ -36,15 +36,15 @@ router.post('/emails', (req, res) => {
   const { email, listId } = req.body;
 
   if (!apiKey) {
-    debug('Email capture:', 'No sendgrid API key found.');
+    console.debug('Email capture:', 'No sendgrid API key found.');
     return res.status(400).send('No sendgrid API key found.');
   }
   if (apiKey === "None") {
-    debug('Email capture:', 'Not using sendgrid');
+    console.debug('Email capture:', 'Not using sendgrid');
     return res.status(400).send('Not using sendgrid');
   }
   if (!email) {
-    debug('Email capture:', 'No email.');
+    console.debug('Email capture:', 'No email.');
     return res.status(400).send('An email is required.');
   }
 
@@ -65,8 +65,8 @@ router.post('/emails', (req, res) => {
 
   return request(options, (error, response, body) => {
     if (error) {
-      debug('Email error:', error);
-      debug('Email error body:', body);
+      console.debug('Email error:', error);
+      console.debug('Email error body:', body);
       return res.status(400).send();
     }
     if (listId && body && body.persisted_recipients) {
@@ -82,15 +82,15 @@ router.post('/emails', (req, res) => {
 router.post('/email/send-feedback', (req, res) => {
   const { email, message, proxy } = req.body;
   if (!apiKey) {
-    debug('send-feedback-email:', 'No sendgrid API key found.');
+    console.debug('send-feedback-email:', 'No sendgrid API key found.');
     return res.status(400).send('No sendgrid API key found.');
   }
   if (!email) {
-    debug('send-feedback-email:', 'No email.');
+    console.debug('send-feedback-email:', 'No email.');
     return res.status(400).send('An email is required.');
   }
   if (!message) {
-    debug('send-feedback-email:', 'No message.');
+    console.debug('send-feedback-email:', 'No message.');
     return res.status(400).send('A message is required.');
   }
 
@@ -110,7 +110,7 @@ router.post('/email/send-feedback', (req, res) => {
     return res.status(200).send('email sent successfully');
   })
   .catch(error => {
-    debug('send-feedback-email:', error);
+    console.debug('send-feedback-email:', error);
     return res.status(500).send('Unable to send email');
   });
 });
@@ -118,7 +118,7 @@ router.post('/email/send-feedback', (req, res) => {
 router.get('/email/random/:listId', (req, res) => {
   const { listId } = req.params;
   if (apiKey === "None") {
-    debug('Email random:', 'Not using sendgrid');
+    console.debug('Email random:', 'Not using sendgrid');
     return res.status(400).send('Not using sendgrid');
   }
   const options = {
@@ -132,8 +132,8 @@ router.get('/email/random/:listId', (req, res) => {
 
   return request(options, (error, response, body) => {
     if (error) {
-      debug('Email error:', error);
-      debug('Email error body:', body);
+      console.debug('Email error:', error);
+      console.debug('Email error body:', body);
       return res.status(400).send();
     }
 
